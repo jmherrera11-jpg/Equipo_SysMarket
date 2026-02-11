@@ -18,11 +18,11 @@ jobs:
     
     services:
       mongodb:
-        image: mongo:5.0
+        image: mongo:7.0  # 👈 CAMBIADO a 7.0 (incluye mongosh)
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongo --quiet"
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -47,22 +47,16 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       
-      - name: 📦 Instalar cliente MongoDB
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mongodb-clients
-          mongo --version
-      
       - name: 🔧 Verificar MongoDB
         run: |
           echo "⏳ Esperando MongoDB..."
           sleep 10
-          mongo --eval 'db.runCommand({ ping: 1 })' --quiet
+          mongosh --eval 'db.runCommand({ ping: 1 })' --quiet
           echo "✅ MongoDB listo"
       
       - name: 🗄️ Inicializar base de datos de prueba
         run: |
-          mongo --eval '
+          mongosh --eval '
             db = db.getSiblingDB("sysmarket_test");
             ["usuarios", "productos", "ventas", "categorias"].forEach(c => {
               db.createCollection(c);
