@@ -254,37 +254,91 @@ public class BodegueroView extends JFrame {
         }
     }
     
+ // En el método configurarPermisos(), agrega tooltips y mejoras:
+
     private void configurarPermisos() {
-        if (usuarioActual == null) return;
+        if (usuarioActual == null) {
+            deshabilitarTodosBotones();
+            return;
+        }
         
         System.out.println("Usuario: " + usuarioActual.getUsername());
         System.out.println("Rol: " + usuarioActual.getRol());
         System.out.println("Permisos asignados: " + usuarioActual.getPermisosEspeciales());
         
-        // CORREGIDO: Usar tienePermiso() en lugar de tienePermisoEspecial()
-        btnAgregar.setEnabled(usuarioActual.tienePermiso("AGREGAR_PRODUCTOS"));
-        btnEditar.setEnabled(usuarioActual.tienePermiso("MODIFICAR_PRECIOS"));
-        btnEliminar.setEnabled(usuarioActual.tienePermiso("ELIMINAR_PRODUCTOS"));
+        // Configurar botones según permisos
+        btnAgregar.setEnabled(usuarioActual.puedeAgregarProductos());
+        btnEditar.setEnabled(usuarioActual.puedeEditarProductos());
+        btnEliminar.setEnabled(usuarioActual.puedeEliminarProductos());
         
-        txtPrecioCompra.setEditable(usuarioActual.tienePermiso("MODIFICAR_PRECIOS"));
-        txtPrecioVenta.setEditable(usuarioActual.tienePermiso("MODIFICAR_PRECIOS"));
-        txtStock.setEditable(usuarioActual.tienePermiso("AJUSTAR_STOCK"));
-        txtStockMinimo.setEditable(usuarioActual.tienePermiso("AJUSTAR_STOCK"));
+        // Configurar campos editables
+        txtPrecioCompra.setEditable(usuarioActual.puedeModificarPrecios());
+        txtPrecioVenta.setEditable(usuarioActual.puedeModificarPrecios());
+        txtStock.setEditable(usuarioActual.puedeAjustarStock());
+        txtStockMinimo.setEditable(usuarioActual.puedeAjustarStock());
         
-        // Si el bodeguero solo tiene permiso de eliminar, mostrar mensaje
-        if (usuarioActual.esBodeguero() && 
-            usuarioActual.tienePermiso("ELIMINAR_PRODUCTOS") &&
-            !usuarioActual.tienePermiso("AGREGAR_PRODUCTOS") &&
-            !usuarioActual.tienePermiso("MODIFICAR_PRECIOS") &&
-            !usuarioActual.tienePermiso("AJUSTAR_STOCK")) {
-            
+        // Agregar tooltips informativos
+        actualizarTooltips();
+        
+        // Verificar si solo tiene permisos limitados
+        verificarPermisosLimitados();
+    }
+
+    private void actualizarTooltips() {
+        btnAgregar.setToolTipText(usuarioActual.puedeAgregarProductos() ? 
+            "Agregar nuevo producto al inventario" : 
+            "No tiene permiso para agregar productos");
+        
+        btnEditar.setToolTipText(usuarioActual.puedeEditarProductos() ? 
+            "Editar producto seleccionado" : 
+            "No tiene permiso para editar productos");
+        
+        btnEliminar.setToolTipText(usuarioActual.puedeEliminarProductos() ? 
+            "Eliminar producto seleccionado" : 
+            "No tiene permiso para eliminar productos");
+        
+        txtPrecioCompra.setToolTipText(usuarioActual.puedeModificarPrecios() ? 
+            "Precio de compra del producto" : 
+            "No tiene permiso para modificar precios");
+        
+        txtPrecioVenta.setToolTipText(usuarioActual.puedeModificarPrecios() ? 
+            "Precio de venta del producto" : 
+            "No tiene permiso para modificar precios");
+        
+        txtStock.setToolTipText(usuarioActual.puedeAjustarStock() ? 
+            "Cantidad disponible en inventario" : 
+            "No tiene permiso para ajustar stock");
+        
+        txtStockMinimo.setToolTipText(usuarioActual.puedeAjustarStock() ? 
+            "Stock mínimo de alerta" : 
+            "No tiene permiso para ajustar stock");
+    }
+
+    private void verificarPermisosLimitados() {
+        int permisosActivos = 0;
+        if (usuarioActual.puedeAgregarProductos()) permisosActivos++;
+        if (usuarioActual.puedeEditarProductos()) permisosActivos++;
+        if (usuarioActual.puedeEliminarProductos()) permisosActivos++;
+        if (usuarioActual.puedeModificarPrecios()) permisosActivos++;
+        if (usuarioActual.puedeAjustarStock()) permisosActivos++;
+        
+        if (permisosActivos <= 1 && permisosActivos > 0) {
             JOptionPane.showMessageDialog(this,
-                "⚠ Permiso especial activado\n" +
-                "Solo puede: ELIMINAR PRODUCTOS\n" +
-                "Las demás funciones están bloqueadas",
+                "⚠ Permisos especiales activados\n" +
+                "Solo tiene acceso a funciones específicas según sus permisos.\n" +
+                "Los botones/campos deshabilitados requieren permisos adicionales.",
                 "Permisos Limitados",
-                JOptionPane.WARNING_MESSAGE);
+                JOptionPane.INFORMATION_MESSAGE);
         }
+    }
+
+    private void deshabilitarTodosBotones() {
+        btnAgregar.setEnabled(false);
+        btnEditar.setEnabled(false);
+        btnEliminar.setEnabled(false);
+        btnActualizar.setEnabled(false);
+        btnBuscar.setEnabled(false);
+        btnLimpiar.setEnabled(false);
     }
 
     // Listeners

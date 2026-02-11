@@ -6,6 +6,7 @@ import view.SuperusuarioCompletoView;
 
 import javax.swing.*;
 import java.util.List;
+import java.util.ArrayList;
 
 public class SuperusuarioCompletoController {
     private SuperusuarioCompletoView view;
@@ -78,6 +79,9 @@ public class SuperusuarioCompletoController {
         
         // Listener para cerrar sesión
         view.addCerrarSesionListener(e -> cerrarSesion());
+        
+        // Listener para cambio de rol en combo
+        view.getComboRol().addActionListener(e -> actualizarPermisosSegunRol());
     }
     
     private void agregarUsuario() {
@@ -97,16 +101,30 @@ public class SuperusuarioCompletoController {
                 view.mostrarError("La contraseña debe tener al menos 6 caracteres");
                 return;
             }
+            
+            // Filtrar permisos válidos para el rol
+            List<String> permisosValidos = new ArrayList<>();
+            for (String permiso : permisosSeleccionados) {
+                if (Usuario.esPermisoValidoParaRol(permiso, rol)) {
+                    permisosValidos.add(permiso);
+                } else {
+                    System.out.println("Permiso " + permiso + " no válido para rol " + rol);
+                }
+            }
 
             // Crear nuevo usuario
             var usuario = new Usuario(username, password, rol);
-            usuario.setPermisosEspeciales(permisosSeleccionados);
+            
+            // Si se seleccionaron permisos específicos, sobreescribir los por defecto
+            if (!permisosValidos.isEmpty()) {
+                usuario.setPermisosEspeciales(permisosValidos);
+            }
 
             // Agregar usuario
-            usuarioManagementController.agregarUsuario(usuario, usuarioActual);
+            usuarioManagementController.agregarUsuarioConPermisos(usuario, usuario.getPermisosEspeciales(), usuarioActual);
             
             view.mostrarExito("Usuario '" + username + "' creado exitosamente con " + 
-                             permisosSeleccionados.size() + " permiso(s)");
+                             usuario.getPermisosEspeciales().size() + " permiso(s)");
             view.limpiarFormularioUsuario();
 
             // Recargar datos
@@ -136,6 +154,33 @@ public class SuperusuarioCompletoController {
             if (usuario != null) {
                 // Cargar datos del usuario en el formulario
                 view.setUsuarioParaEditar(usuario);
+                
+                // Preguntar si quiere actualizar
+                int opcion = JOptionPane.showConfirmDialog(view,
+                    "¿Desea actualizar los permisos del usuario '" + username + "'?",
+                    "Actualizar Permisos",
+                    JOptionPane.YES_NO_OPTION);
+                
+                if (opcion == JOptionPane.YES_OPTION) {
+                    String nuevoRol = view.getRol();
+                    List<String> nuevosPermisos = view.getPermisosSeleccionados();
+                    
+                    // Filtrar permisos válidos
+                    List<String> permisosValidos = new ArrayList<>();
+                    for (String permiso : nuevosPermisos) {
+                        if (Usuario.esPermisoValidoParaRol(permiso, nuevoRol)) {
+                            permisosValidos.add(permiso);
+                        }
+                    }
+                    
+                    // Actualizar usuario
+                    usuario.setRol(nuevoRol);
+                    usuario.setPermisosEspeciales(permisosValidos);
+                    usuarioManagementController.actualizarPermisosUsuario(username, permisosValidos, usuarioActual);
+                    
+                    view.mostrarExito("Usuario actualizado exitosamente");
+                    cargarDatosCompletos();
+                }
             } else {
                 view.mostrarError("Usuario no encontrado");
             }
@@ -175,6 +220,31 @@ public class SuperusuarioCompletoController {
         }
     }
     
+    private void actualizarPermisosSegunRol() {
+        String rol = view.getRol();
+        
+        // Deshabilitar checkboxes según el rol
+        var checkBoxes = view.getCheckBoxesPermisos();
+        if (checkBoxes != null) {
+            for (var entry : checkBoxes.entrySet()) {
+                String permiso = entry.getKey();
+                JCheckBox checkBox = entry.getValue();
+                
+                // Habilitar todos los checkboxes para superusuario
+                if (Usuario.ROL_SUPERUSUARIO.equals(rol)) {
+                    checkBox.setEnabled(true);
+                } else {
+                    // Validar permisos según rol
+                    boolean esValido = Usuario.esPermisoValidoParaRol(permiso, rol);
+                    checkBox.setEnabled(esValido);
+                    if (!esValido) {
+                        checkBox.setSelected(false); // Desmarcar permisos no válidos
+                    }
+                }
+            }
+        }
+    }
+    
     private void cerrarSesion() {
         int confirm = JOptionPane.showConfirmDialog(view, 
             "¿Está seguro de que desea cerrar sesión?",
@@ -189,5 +259,10 @@ public class SuperusuarioCompletoController {
     
     private void volverAlLogin() {
         new LoginView().setVisible(true);
+    }
+    
+    // Método para obtener el combo de roles desde la vista (debes agregar este getter en la vista)
+    public JComboBox<String> getComboRol() {
+        return view.getComboRol();
     }
 }

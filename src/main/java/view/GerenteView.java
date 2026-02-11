@@ -42,6 +42,7 @@ public class GerenteView extends JFrame {
     public GerenteView(Usuario usuarioActual) {
         this.usuarioActual = usuarioActual;
         initializeUI();
+        configurarPermisosUI();
     }
     
     private void initializeUI() {
@@ -249,6 +250,134 @@ public class GerenteView extends JFrame {
         return panel;
     }
     
+    // Método para configurar permisos en la UI
+    private void configurarPermisosUI() {
+        if (usuarioActual == null) {
+            deshabilitarTodosBotones();
+            return;
+        }
+        
+        System.out.println("=== INFORMACIÓN DE USUARIO GERENTE ===");
+        System.out.println("Usuario: " + usuarioActual.getUsername());
+        System.out.println("Rol: " + usuarioActual.getRol());
+        System.out.println("Permisos: " + usuarioActual.getPermisosEspeciales());
+        System.out.println("Puede acceder gestión productos: " + usuarioActual.puedeAccederGestionProductos());
+        System.out.println("Puede acceder control ventas: " + usuarioActual.puedeAccederControlVentas());
+        System.out.println("Puede acceder reportes: " + usuarioActual.puedeAccederReportes());
+        System.out.println("Puede ver reportes: " + usuarioActual.puedeVerReportes());
+        System.out.println("Puede acceder dashboard: " + usuarioActual.puedeAccederDashboard());
+        System.out.println("======================================");
+        
+        // Habilitar/deshabilitar según permisos
+        btnBuscarProductos.setEnabled(usuarioActual.puedeAccederGestionProductos());
+        btnReporteStock.setEnabled(usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes());
+        btnFiltrarVentas.setEnabled(usuarioActual.puedeAccederControlVentas());
+        btnReporteVentas.setEnabled(usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes());
+        btnGenerarReporte.setEnabled(usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes());
+        
+        // Configurar pestañas según permisos
+        boolean accesoProductos = usuarioActual.puedeAccederGestionProductos() || usuarioActual.tieneAccesoTotal();
+        boolean accesoVentas = usuarioActual.puedeAccederControlVentas() || usuarioActual.tieneAccesoTotal();
+        boolean accesoReportes = usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes() || usuarioActual.tieneAccesoTotal();
+        boolean accesoDashboard = usuarioActual.puedeAccederDashboard() || usuarioActual.tieneAccesoTotal();
+        
+        // Habilitar/deshabilitar pestañas
+        tabbedPane.setEnabledAt(0, accesoProductos);
+        tabbedPane.setEnabledAt(1, accesoVentas);
+        tabbedPane.setEnabledAt(2, accesoReportes);
+        tabbedPane.setEnabledAt(3, accesoDashboard);
+        
+        // Si no tiene acceso a ninguna pestaña, mostrar error
+        if (!accesoProductos && !accesoVentas && !accesoReportes && !accesoDashboard) {
+            JOptionPane.showMessageDialog(this,
+                "⚠ Este usuario no tiene permisos para acceder a ninguna sección.\n" +
+                "Contacte al administrador para asignar permisos.\n\n" +
+                "Permisos actuales: " + usuarioActual.getPermisosEspeciales(),
+                "Sin Permisos",
+                JOptionPane.WARNING_MESSAGE);
+        }
+        
+        // Agregar tooltips
+        actualizarTooltips();
+        
+        // Mostrar advertencia si tiene pocos permisos
+        if (usuarioActual.esGerente() && 
+            !usuarioActual.puedeAccederGestionProductos() && 
+            !usuarioActual.puedeAccederControlVentas() && 
+            !usuarioActual.puedeAccederReportes()) {
+            
+            JOptionPane.showMessageDialog(this,
+                "⚠ Este gerente tiene permisos limitados.\n" +
+                "Solo podrá acceder a las funciones para las que tiene permisos específicos.",
+                "Permisos Limitados",
+                JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+    
+    private void deshabilitarTodosBotones() {
+        btnBuscarProductos.setEnabled(false);
+        btnReporteStock.setEnabled(false);
+        btnFiltrarVentas.setEnabled(false);
+        btnReporteVentas.setEnabled(false);
+        btnGenerarReporte.setEnabled(false);
+        tabbedPane.setEnabledAt(0, false);
+        tabbedPane.setEnabledAt(1, false);
+        tabbedPane.setEnabledAt(2, false);
+        tabbedPane.setEnabledAt(3, false);
+    }
+    
+    private void actualizarTooltips() {
+        btnBuscarProductos.setToolTipText(usuarioActual.puedeAccederGestionProductos() ? 
+            "Buscar productos por categoría" : 
+            "No tiene permiso para acceder a gestión de productos");
+        
+        btnReporteStock.setToolTipText((usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes()) ? 
+            "Generar reporte de stock crítico" : 
+            "No tiene permiso para generar reportes");
+        
+        btnFiltrarVentas.setToolTipText(usuarioActual.puedeAccederControlVentas() ? 
+            "Filtrar ventas por fecha" : 
+            "No tiene permiso para acceder a control de ventas");
+        
+        btnReporteVentas.setToolTipText((usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes()) ? 
+            "Generar reporte de ventas" : 
+            "No tiene permiso para generar reportes");
+        
+        btnGenerarReporte.setToolTipText((usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes()) ? 
+            "Generar reporte seleccionado" : 
+            "No tiene permiso para generar reportes");
+        
+        // Tooltips para pestañas
+        tabbedPane.setToolTipTextAt(0, accesoProductosTooltip());
+        tabbedPane.setToolTipTextAt(1, accesoVentasTooltip());
+        tabbedPane.setToolTipTextAt(2, accesoReportesTooltip());
+        tabbedPane.setToolTipTextAt(3, accesoDashboardTooltip());
+    }
+    
+    private String accesoProductosTooltip() {
+        return usuarioActual.puedeAccederGestionProductos() ? 
+            "Gestión de productos e inventario" : 
+            "No tiene permiso para acceder a gestión de productos";
+    }
+    
+    private String accesoVentasTooltip() {
+        return usuarioActual.puedeAccederControlVentas() ? 
+            "Control y seguimiento de ventas" : 
+            "No tiene permiso para acceder a control de ventas";
+    }
+    
+    private String accesoReportesTooltip() {
+        return (usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes()) ? 
+            "Generación de reportes gerenciales" : 
+            "No tiene permiso para acceder a reportes";
+    }
+    
+    private String accesoDashboardTooltip() {
+        return usuarioActual.puedeAccederDashboard() ? 
+            "Dashboard con métricas gerenciales" : 
+            "No tiene permiso para acceder al dashboard";
+    }
+    
     // ========== MÉTODOS PARA ACTUALIZAR DATOS ==========
     
     public void actualizarTablaProductos(List<Producto> productos) {
@@ -344,6 +473,10 @@ public class GerenteView extends JFrame {
         return tabbedPane;
     }
     
+    public Usuario getUsuarioActual() {
+        return usuarioActual;
+    }
+    
     // ========== LISTENERS ==========
     
     public void addBuscarProductosListener(ActionListener listener) {
@@ -380,6 +513,10 @@ public class GerenteView extends JFrame {
         JOptionPane.showMessageDialog(this, mensaje, "Éxito", JOptionPane.INFORMATION_MESSAGE);
     }
     
+    public void mostrarAdvertencia(String mensaje) {
+        JOptionPane.showMessageDialog(this, mensaje, "Advertencia", JOptionPane.WARNING_MESSAGE);
+    }
+    
     // ========== MÉTODOS ADICIONALES UTILES ==========
     
     public void limpiarReportes() {
@@ -391,7 +528,43 @@ public class GerenteView extends JFrame {
     }
     
     public void mostrarMensajeStatus(String mensaje) {
-        // Puedes agregar una barra de estado si quieres
-        System.out.println("📢 " + mensaje);
+        System.out.println("📢 GerenteView: " + mensaje);
+    }
+    
+    // Método para verificar si se puede realizar una acción
+    public boolean verificarPermisoAccion(String accion, boolean mostrarMensaje) {
+        boolean tienePermiso = false;
+        String mensajeError = "";
+        
+        switch(accion) {
+            case "BUSCAR_PRODUCTOS":
+                tienePermiso = usuarioActual.puedeAccederGestionProductos();
+                mensajeError = "No tiene permiso para buscar productos";
+                break;
+            case "REPORTE_STOCK":
+                tienePermiso = usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes();
+                mensajeError = "No tiene permiso para generar reportes de stock";
+                break;
+            case "FILTRAR_VENTAS":
+                tienePermiso = usuarioActual.puedeAccederControlVentas();
+                mensajeError = "No tiene permiso para filtrar ventas";
+                break;
+            case "REPORTE_VENTAS":
+                tienePermiso = usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes();
+                mensajeError = "No tiene permiso para generar reportes de ventas";
+                break;
+            case "GENERAR_REPORTE":
+                tienePermiso = usuarioActual.puedeAccederReportes() || usuarioActual.puedeVerReportes();
+                mensajeError = "No tiene permiso para generar reportes";
+                break;
+            default:
+                mensajeError = "Acción no reconocida: " + accion;
+        }
+        
+        if (!tienePermiso && mostrarMensaje) {
+            mostrarError(mensajeError + "\n\nContacte al administrador para solicitar este permiso.");
+        }
+        
+        return tienePermiso;
     }
 }

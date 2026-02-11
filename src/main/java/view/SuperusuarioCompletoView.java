@@ -456,7 +456,7 @@ public class SuperusuarioCompletoView extends JFrame {
         }
     }
     
-    private boolean esPermisoValidoParaRol(String permiso, String rol) {
+    /*private boolean esPermisoValidoParaRol(String permiso, String rol) {
         // Definir qué permisos son válidos para cada rol
         switch (rol) {
             case Usuario.ROL_GERENTE:
@@ -476,6 +476,10 @@ public class SuperusuarioCompletoView extends JFrame {
             default:
                 return true; // Superusuario puede todo
         }
+    }*/
+ // Busca este método en la clase y reemplázalo por:
+    private boolean esPermisoValidoParaRol(String permiso, String rol) {
+        return Usuario.esPermisoValidoParaRol(permiso, rol);
     }
     
     private void configurarPermisos() {
@@ -530,5 +534,14 @@ public class SuperusuarioCompletoView extends JFrame {
             comboRol.setSelectedItem(usuario.getRol());
             setPermisosSeleccionados(usuario.getPermisosEspeciales());
         }
+    }
+ // Agrega estos métodos getter en SuperusuarioCompletoView.java:
+
+    public JComboBox<String> getComboRol() {
+        return comboRol;
+    }
+
+    public Map<String, JCheckBox> getCheckBoxesPermisos() {
+        return checkBoxesPermisos;
     }
 }

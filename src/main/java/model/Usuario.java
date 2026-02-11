@@ -17,6 +17,28 @@ public class Usuario {
     public static final String ROL_BODEGUERO = "BODEGUERO";
     public static final String ROL_CAJERO = "CAJERO";
     
+    // Permisos por defecto según rol
+    private static final List<String> PERMISOS_SUPERUSUARIO = Arrays.asList(
+        "ACCESO_TOTAL", "GESTIONAR_USUARIOS", "GESTIONAR_PRODUCTOS",
+        "VER_REPORTES", "EXPORTAR_DATOS", "CONFIGURAR_SISTEMA"
+    );
+    
+    private static final List<String> PERMISOS_GERENTE = Arrays.asList(
+        "ACCEDER_GESTION_PRODUCTOS", "ACCEDER_CONTROL_VENTAS",
+        "ACCEDER_REPORTES", "ACCEDER_DASHBOARD", "VER_REPORTES",
+        "EXPORTAR_DATOS", "GESTIONAR_PRODUCTOS"
+    );
+    
+    private static final List<String> PERMISOS_BODEGUERO = Arrays.asList(
+        "AGREGAR_PRODUCTOS", "EDITAR_PRODUCTOS", "ELIMINAR_PRODUCTOS",
+        "MODIFICAR_PRECIOS", "AJUSTAR_STOCK", "GESTIONAR_CATEGORIAS"
+    );
+    
+    private static final List<String> PERMISOS_CAJERO = Arrays.asList(
+        "PROCESAR_VENTAS", "AGREGAR_CARRITO", "QUITAR_CARRITO",
+        "LIMPIAR_CARRITO", "REALIZAR_VENTA", "VER_REPORTES_BASICOS"
+    );
+    
     // Constante para todos los permisos disponibles
     public static final List<String> TODOS_LOS_PERMISOS = Arrays.asList(
         "ACCESO_TOTAL",
@@ -36,6 +58,7 @@ public class Usuario {
         "ACCEDER_DASHBOARD",
         "VER_REPORTES_BASICOS",
         "VER_REPORTES_AVANZADOS",
+        "VER_REPORTES",
         "GESTIONAR_USUARIOS",
         "EXPORTAR_DATOS",
         "CONFIGURAR_SISTEMA",
@@ -49,6 +72,7 @@ public class Usuario {
         this.username = username;
         this.password = password;
         this.rol = rol;
+        asignarPermisosPorDefecto();
     }
     
     // Getters y Setters
@@ -59,14 +83,46 @@ public class Usuario {
     public void setPassword(String password) { this.password = password; }
     
     public String getRol() { return rol; }
-    public void setRol(String rol) { this.rol = rol; }
+    public void setRol(String rol) { 
+        this.rol = rol;
+        asignarPermisosPorDefecto();
+    }
     
     public List<String> getPermisosEspeciales() { 
         return permisosEspeciales; 
     }
     
     public void setPermisosEspeciales(List<String> permisosEspeciales) { 
-        this.permisosEspeciales = permisosEspeciales != null ? permisosEspeciales : new ArrayList<>();
+        if (permisosEspeciales == null) {
+            this.permisosEspeciales = new ArrayList<>();
+        } else {
+            this.permisosEspeciales = new ArrayList<>(permisosEspeciales);
+        }
+    }
+    
+    // Método privado para asignar permisos por defecto según rol
+    private void asignarPermisosPorDefecto() {
+        if (permisosEspeciales == null) {
+            permisosEspeciales = new ArrayList<>();
+        }
+        
+        // Limpiar y asignar permisos por defecto
+        permisosEspeciales.clear();
+        
+        switch (rol) {
+            case ROL_SUPERUSUARIO:
+                permisosEspeciales.addAll(PERMISOS_SUPERUSUARIO);
+                break;
+            case ROL_GERENTE:
+                permisosEspeciales.addAll(PERMISOS_GERENTE);
+                break;
+            case ROL_BODEGUERO:
+                permisosEspeciales.addAll(PERMISOS_BODEGUERO);
+                break;
+            case ROL_CAJERO:
+                permisosEspeciales.addAll(PERMISOS_CAJERO);
+                break;
+        }
     }
     
     // Métodos de utilidad
@@ -92,17 +148,58 @@ public class Usuario {
         }
     }
     
+    public void quitarPermiso(String permiso) {
+        if (permiso != null && !permiso.equals("ACCESO_TOTAL") && esSuperusuario()) {
+            // No permitir quitar ACCESO_TOTAL a superusuarios
+            return;
+        }
+        permisosEspeciales.remove(permiso);
+    }
+    
     public boolean tienePermiso(String permiso) {
-        return permisosEspeciales.contains(permiso) || tieneAccesoTotal();
+        if (permiso == null) return false;
+        
+        // Si tiene ACCESO_TOTAL, tiene todos los permisos
+        if (tieneAccesoTotal()) {
+            return true;
+        }
+        
+        // Verificar si tiene el permiso específico
+        return permisosEspeciales.contains(permiso);
     }
     
     public boolean tieneAccesoTotal() {
         return permisosEspeciales.contains("ACCESO_TOTAL") || esSuperusuario();
     }
     
-    // Método adicional para verificar permisos especiales
-    public boolean tienePermisoEspecial(String permiso) {
-        return permisosEspeciales.contains(permiso);
+    // Método para validar si un permiso es válido para el rol
+    public static boolean esPermisoValidoParaRol(String permiso, String rol) {
+        if (ROL_SUPERUSUARIO.equals(rol)) {
+            return true; // Superusuario puede tener cualquier permiso
+        }
+        
+        // Definir permisos válidos para cada rol
+        switch (rol) {
+            case ROL_GERENTE:
+                return permiso.startsWith("ACCEDER_") || 
+                       permiso.startsWith("VER_") ||
+                       permiso.equals("EXPORTAR_DATOS") ||
+                       permiso.equals("GESTIONAR_PRODUCTOS") ||
+                       permiso.equals("GESTIONAR_CATEGORIAS");
+            case ROL_BODEGUERO:
+                return permiso.contains("PRODUCTOS") || 
+                       permiso.equals("AJUSTAR_STOCK") ||
+                       permiso.equals("GESTIONAR_CATEGORIAS") ||
+                       permiso.equals("MODIFICAR_PRECIOS");
+            case ROL_CAJERO:
+                return permiso.contains("CARRITO") || 
+                       permiso.contains("VENTA") ||
+                       permiso.equals("PROCESAR_VENTAS") ||
+                       permiso.equals("GENERAR_COMPROBANTES") ||
+                       permiso.equals("VER_REPORTES_BASICOS");
+            default:
+                return false;
+        }
     }
     
     // Convertir a Document
@@ -123,6 +220,9 @@ public class Usuario {
         if (doc.get("permisosEspeciales") != null) {
             List<String> permisos = doc.getList("permisosEspeciales", String.class);
             usuario.setPermisosEspeciales(permisos);
+        } else {
+            // Si no hay permisos en el documento, asignar por defecto
+            usuario.asignarPermisosPorDefecto();
         }
         
         return usuario;
@@ -130,10 +230,11 @@ public class Usuario {
     
     @Override
     public String toString() {
-        return String.format("Usuario{username='%s', rol='%s'}", username, rol);
+        return String.format("Usuario{username='%s', rol='%s', permisos=%s}", 
+                username, rol, permisosEspeciales);
     }
     
-    // Métodos de validación de permisos (SIMPLIFICADOS)
+    // Métodos de validación de permisos simplificados
     public boolean puedeAgregarProductos() {
         return tienePermiso("AGREGAR_PRODUCTOS") || tieneAccesoTotal();
     }
@@ -193,7 +294,24 @@ public class Usuario {
     public boolean puedeVerReportes() {
         return tienePermiso("VER_REPORTES_BASICOS") || 
                tienePermiso("VER_REPORTES_AVANZADOS") || 
+               tienePermiso("VER_REPORTES") ||
                puedeAccederReportes() ||
                tieneAccesoTotal();
+    }
+    
+    public boolean puedeGestionarUsuarios() {
+        return tienePermiso("GESTIONAR_USUARIOS") || tieneAccesoTotal();
+    }
+    
+    public boolean puedeExportarDatos() {
+        return tienePermiso("EXPORTAR_DATOS") || tieneAccesoTotal();
+    }
+    
+    public boolean puedeConfigurarSistema() {
+        return tienePermiso("CONFIGURAR_SISTEMA") || tieneAccesoTotal();
+    }
+    
+    public boolean puedeGestionarCategorias() {
+        return tienePermiso("GESTIONAR_CATEGORIAS") || tieneAccesoTotal();
     }
 }

@@ -30,6 +30,7 @@ public class CajeroView extends JFrame {
         this.carrito = new ArrayList<>();
         this.totalVenta = 0.0;
         initializeUI();
+        configurarPermisosUI();
     }
     
     private void initializeUI() {
@@ -178,6 +179,66 @@ public class CajeroView extends JFrame {
         return panel;
     }
     
+    // Método para configurar permisos en la UI
+    private void configurarPermisosUI() {
+        if (usuarioActual == null) {
+            deshabilitarTodosBotones();
+            return;
+        }
+        
+        System.out.println("Configurando permisos para cajero: " + usuarioActual.getUsername());
+        System.out.println("Permisos: " + usuarioActual.getPermisosEspeciales());
+        
+        // Habilitar/deshabilitar según permisos
+        btnAgregarCarrito.setEnabled(usuarioActual.puedeAgregarCarrito());
+        btnQuitarCarrito.setEnabled(usuarioActual.puedeQuitarCarrito());
+        btnLimpiarCarrito.setEnabled(usuarioActual.puedeLimpiarCarrito());
+        btnRealizarVenta.setEnabled(usuarioActual.puedeRealizarVenta());
+        btnBuscar.setEnabled(usuarioActual.puedeAccederGestionProductos() || usuarioActual.tieneAccesoTotal());
+        
+        // Mostrar tooltips con información de permisos
+        actualizarTooltips();
+        
+        // Si no tiene permisos básicos, mostrar advertencia
+        if (!usuarioActual.puedeAgregarCarrito() && !usuarioActual.puedeRealizarVenta()) {
+            JOptionPane.showMessageDialog(this,
+                "⚠ Este usuario no tiene permisos básicos para operaciones de caja.\n" +
+                "Contacte al administrador para asignar permisos.",
+                "Permisos Insuficientes",
+                JOptionPane.WARNING_MESSAGE);
+        }
+    }
+    
+    private void deshabilitarTodosBotones() {
+        btnAgregarCarrito.setEnabled(false);
+        btnQuitarCarrito.setEnabled(false);
+        btnLimpiarCarrito.setEnabled(false);
+        btnRealizarVenta.setEnabled(false);
+        btnBuscar.setEnabled(false);
+    }
+    
+    private void actualizarTooltips() {
+        btnAgregarCarrito.setToolTipText(usuarioActual.puedeAgregarCarrito() ? 
+            "Agregar producto al carrito" : 
+            "No tiene permiso para agregar productos al carrito");
+        
+        btnQuitarCarrito.setToolTipText(usuarioActual.puedeQuitarCarrito() ? 
+            "Quitar producto del carrito" : 
+            "No tiene permiso para quitar productos del carrito");
+        
+        btnLimpiarCarrito.setToolTipText(usuarioActual.puedeLimpiarCarrito() ? 
+            "Limpiar todo el carrito" : 
+            "No tiene permiso para limpiar el carrito");
+        
+        btnRealizarVenta.setToolTipText(usuarioActual.puedeRealizarVenta() ? 
+            "Realizar venta y generar comprobante" : 
+            "No tiene permiso para realizar ventas");
+        
+        btnBuscar.setToolTipText((usuarioActual.puedeAccederGestionProductos() || usuarioActual.tieneAccesoTotal()) ? 
+            "Buscar productos" : 
+            "No tiene permiso para buscar productos");
+    }
+    
     // Getters
     public String getCategoriaSeleccionada() {
         return (String) comboCategorias.getSelectedItem();
@@ -214,6 +275,10 @@ public class CajeroView extends JFrame {
     
     public double getTotalVenta() {
         return totalVenta;
+    }
+    
+    public Usuario getUsuarioActual() {
+        return usuarioActual;
     }
     
     // Setters
@@ -373,5 +438,40 @@ public class CajeroView extends JFrame {
         scrollPane.setPreferredSize(new Dimension(400, 300));
         
         JOptionPane.showMessageDialog(this, scrollPane, "Venta Realizada", JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    // Método para verificar si se puede realizar una acción
+    public boolean verificarPermisoAccion(String accion, boolean mostrarMensaje) {
+        boolean tienePermiso = false;
+        String mensajeError = "";
+        
+        switch(accion) {
+            case "AGREGAR_CARRITO":
+                tienePermiso = usuarioActual.puedeAgregarCarrito();
+                mensajeError = "No tiene permiso para agregar productos al carrito";
+                break;
+            case "QUITAR_CARRITO":
+                tienePermiso = usuarioActual.puedeQuitarCarrito();
+                mensajeError = "No tiene permiso para quitar productos del carrito";
+                break;
+            case "LIMPIAR_CARRITO":
+                tienePermiso = usuarioActual.puedeLimpiarCarrito();
+                mensajeError = "No tiene permiso para limpiar el carrito";
+                break;
+            case "REALIZAR_VENTA":
+                tienePermiso = usuarioActual.puedeRealizarVenta();
+                mensajeError = "No tiene permiso para realizar ventas";
+                break;
+            case "BUSCAR_PRODUCTOS":
+                tienePermiso = usuarioActual.puedeAccederGestionProductos() || usuarioActual.tieneAccesoTotal();
+                mensajeError = "No tiene permiso para buscar productos";
+                break;
+        }
+        
+        if (!tienePermiso && mostrarMensaje) {
+            mostrarError(mensajeError + "\n\nContacte al administrador para solicitar este permiso.");
+        }
+        
+        return tienePermiso;
     }
 }
