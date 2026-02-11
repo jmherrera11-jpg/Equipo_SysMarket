@@ -22,7 +22,7 @@ jobs:
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongo --quiet"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -51,12 +51,12 @@ jobs:
         run: |
           echo "⏳ Esperando MongoDB..."
           sleep 10
-          mongosh --eval 'db.runCommand({ ping: 1 })' --quiet
+          mongo --eval 'db.runCommand({ ping: 1 })' --quiet
           echo "✅ MongoDB listo"
       
       - name: 🗄️ Inicializar base de datos de prueba
         run: |
-          mongosh --eval '
+          mongo --eval '
             db = db.getSiblingDB("sysmarket_test");
             ["usuarios", "productos", "ventas", "categorias"].forEach(c => {
               db.createCollection(c);
@@ -147,7 +147,7 @@ jobs:
       
       - name: 📤 Upload reports
         if: always()
-        uses: actions/upload-artifact@v4  # 👈 CAMBIADO DE v3 a v4
+        uses: actions/upload-artifact@v4
         with:
           name: test-reports-${{ github.run_id }}
           path: |
