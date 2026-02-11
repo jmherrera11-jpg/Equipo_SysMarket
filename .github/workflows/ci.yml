@@ -47,6 +47,12 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       
+      - name: 📦 Instalar cliente MongoDB
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mongodb-clients
+          mongo --version
+      
       - name: 🔧 Verificar MongoDB
         run: |
           echo "⏳ Esperando MongoDB..."
