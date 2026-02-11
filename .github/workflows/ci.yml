@@ -18,14 +18,9 @@ jobs:
     
     services:
       mongodb:
-        image: mongo:7.0  # 👈 CAMBIADO a 7.0 (incluye mongosh)
+        image: mongo:7.0
         ports:
           - 27017:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     
     steps:
       - name: 📥 Checkout código
@@ -47,12 +42,26 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       
+      - name: 🔧 Instalar MongoDB Shell
+        run: |
+          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
+      
       - name: 🔧 Verificar MongoDB
         run: |
           echo "⏳ Esperando MongoDB..."
-          sleep 10
-          mongosh --eval 'db.runCommand({ ping: 1 })' --quiet
-          echo "✅ MongoDB listo"
+          for i in {1..30}; do
+            if mongosh --eval 'db.runCommand({ ping: 1 })' --quiet > /dev/null 2>&1; then
+              echo "✅ MongoDB listo"
+              exit 0
+            fi
+            echo "Intento $i/30..."
+            sleep 2
+          done
+          echo "❌ MongoDB no responde después de 60 segundos"
+          exit 1
       
       - name: 🗄️ Inicializar base de datos de prueba
         run: |
