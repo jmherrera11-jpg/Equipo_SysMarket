@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: test.HU01_AutenticacionTest
+-------------------------------------------------------------------------------
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.067 s - in test.HU01_AutenticacionTest
