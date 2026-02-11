@@ -69,6 +69,7 @@ public class Usuario {
         this.permisosEspeciales = permisosEspeciales != null ? permisosEspeciales : new ArrayList<>();
     }
     
+    
     // Métodos de utilidad
     public boolean esSuperusuario() {
         return ROL_SUPERUSUARIO.equals(this.rol);

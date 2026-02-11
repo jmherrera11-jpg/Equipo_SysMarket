@@ -111,7 +111,7 @@ public class UsuarioModelTest {
         
         assertTrue(usuario.puedeAgregarProductos());
         assertTrue(usuario.puedeEditarProductos());
-        assertFalse(usuario.puedeEliminarProductos()); // No tiene este permiso
+        assertFalse(usuario.puedeEliminarProductos());
     }
     
     @Test
