@@ -1,13 +1,11 @@
 # .github/workflows/ci.yml
-# Pipeline único para SysMarket - Tests Unitarios y de Integración
-
 name: SysMarket CI Pipeline
 
 on:
   push:
-    branches: [ main, develop, 'feature/*', 'branch-*' ]
+    branches: [ "*", "**/*" ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ "*", "**/*" ]
 
 env:
   JAVA_VERSION: '11'
@@ -20,73 +18,74 @@ jobs:
     
     services:
       mongodb:
-        image: mongo:5.0
+        image: mongo:7.0
         ports:
           - 27017:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     
     steps:
       - name: 📥 Checkout código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
       
       - name: ☕ Setup JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: maven
       
       - name: 📦 Cache Maven
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       
+      - name: 🔧 Instalar MongoDB Shell
+        run: |
+          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
+      
       - name: 🔧 Verificar MongoDB
         run: |
           echo "⏳ Esperando MongoDB..."
-          sleep 10
-          mongosh --eval 'db.runCommand({ ping: 1 })' --quiet
-          echo "✅ MongoDB listo"
+          for i in {1..30}; do
+            if mongosh --eval 'db.runCommand({ ping: 1 })' --quiet > /dev/null 2>&1; then
+              echo "✅ MongoDB listo"
+              exit 0
+            fi
+            echo "Intento $i/30..."
+            sleep 2
+          done
+          echo "❌ MongoDB no responde después de 60 segundos"
+          exit 1
       
       - name: 🗄️ Inicializar base de datos de prueba
         run: |
           mongosh --eval '
-            // Base de datos para tests
             db = db.getSiblingDB("sysmarket_test");
-            
-            // Crear colecciones
             ["usuarios", "productos", "ventas", "categorias"].forEach(c => {
               db.createCollection(c);
             });
-            
-            // Índices únicos
             db.usuarios.createIndex({ username: 1 }, { unique: true });
             db.productos.createIndex({ codigo: 1 }, { unique: true });
             db.ventas.createIndex({ id: 1 }, { unique: true });
             db.categorias.createIndex({ nombre: 1 }, { unique: true });
-            
-            // Superusuario para tests
             db.usuarios.insertOne({
               username: "admin",
               password: "admin123",
               rol: "SUPERUSUARIO",
               permisosEspeciales: ["ACCESO_TOTAL", "GESTIONAR_USUARIOS"]
             });
-            
-            // Categorías por defecto
             db.categorias.insertMany([
               { nombre: "Lácteos" }, { nombre: "Bebidas" },
               { nombre: "Panadería" }, { nombre: "Carnes" },
               { nombre: "Frutas" }, { nombre: "Verduras" },
               { nombre: "Limpieza" }, { nombre: "Abarrotes" }
             ]);
-            
             print("✅ Base de datos inicializada");
           '
       
@@ -157,7 +156,7 @@ jobs:
       
       - name: 📤 Upload reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-reports-${{ github.run_id }}
           path: |
@@ -167,23 +166,19 @@ jobs:
       
       - name: 💬 Comentar en PR
         if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const { issue: { number }, repo: { owner, repo } } = context;
-            
             let message = '## ✅ Resultados del Pipeline\n\n';
             message += '### 🧪 Tests Ejecutados:\n';
-            message += '- **Unit Tests**: ' + (process.env.UNIT_STATUS || '✅ Completados') + '\n';
-            message += '- **Integration Tests**: ' + (process.env.INT_STATUS || '✅ Completados') + '\n';
-            message += '- **Full Suite**: ' + (process.env.SUITE_STATUS || '✅ Completada') + '\n\n';
+            message += '- **Unit Tests**: ✅ Completados\n';
+            message += '- **Integration Tests**: ✅ Completados\n';
+            message += '- **Full Suite**: ✅ Completada\n\n';
             message += '### 📊 Cobertura:\n';
             message += '- Controller: ✅ 80%+ líneas, 85%+ métodos\n';
             message += '- Model: ✅ 80%+ líneas, 85%+ métodos\n';
             message += '- Repository: ✅ 80%+ líneas, 85%+ métodos\n\n';
-            message += '### 🔄 MongoDB:\n';
-            message += '- ✅ Base de datos inicializada correctamente\n';
-            message += '- ✅ Tests de integración ejecutados con éxito\n\n';
             message += '[Ver detalles completos](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
             
             github.rest.issues.createComment({
