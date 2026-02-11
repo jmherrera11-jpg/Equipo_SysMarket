@@ -168,15 +168,32 @@ public class CajeroController {
                     return;
                 }
                 
+                // HU-08: Solicitar y validar cédula del cliente
+                String cedulaCliente = view.mostrarDialogoCedulaCliente();
+                
+                // Si se canceló la solicitud de cédula
+                if (cedulaCliente == null) {
+                    return;
+                }
+                
+                // Validar cédula
+                String errorCedula = ventaController.validarCedula(cedulaCliente);
+                if (errorCedula != null) {
+                    view.mostrarError("❌ Cédula inválida:\n" + errorCedula + 
+                                    "\n\nPor favor ingrese una cédula válida de 10 dígitos.");
+                    return;
+                }
+                
                 // Seleccionar método de pago
                 String metodoPago = view.mostrarDialogoMetodoPago();
                 if (metodoPago == null) {
                     return; // Usuario canceló
                 }
                 
-                // Registrar la venta
-                Venta venta = ventaController.registrarVenta(
+                // Registrar la venta CON cédula validada
+                Venta venta = ventaController.registrarVentaConCedula(
                     usuarioActual.getUsername(),
+                    cedulaCliente,
                     carrito,
                     view.getTotalVenta(),
                     metodoPago

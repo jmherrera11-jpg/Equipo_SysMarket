@@ -8,6 +8,7 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -341,6 +342,57 @@ public class CajeroView extends JFrame {
         );
     }
     
+    /**
+     * HU-08: Muestra diálogo para solicitar la cédula del cliente
+     * @return Cédula ingresada por el usuario, o null si canceló
+     */
+    public String mostrarDialogoCedulaCliente() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        // Instrucción
+        JLabel lblInstruccion = new JLabel("Ingrese la cédula del cliente (10 dígitos):");
+        lblInstruccion.setFont(new Font("Arial", Font.PLAIN, 12));
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        panel.add(lblInstruccion, gbc);
+        
+        // Campo de cédula
+        JTextField txtCedula = new JTextField(15);
+        txtCedula.setFont(new Font("Arial", Font.PLAIN, 14));
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(txtCedula, gbc);
+        
+        // Información útil
+        JLabel lblInfo = new JLabel("Formato: XXXXXXXXXX (sin guiones)");
+        lblInfo.setFont(new Font("Arial", Font.ITALIC, 10));
+        lblInfo.setForeground(new Color(100, 100, 100));
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        panel.add(lblInfo, gbc);
+        
+        // Botones
+        int result = JOptionPane.showConfirmDialog(
+            this,
+            panel,
+            "🆔 Validación de Cédula - HU-08",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.QUESTION_MESSAGE
+        );
+        
+        if (result == JOptionPane.OK_OPTION) {
+            return txtCedula.getText().trim();
+        }
+        
+        return null; // Usuario canceló
+    }
+    
     public void mostrarResumenVenta(Venta venta) {
         StringBuilder resumen = new StringBuilder();
         resumen.append("═══════════════════════════════════\n");
@@ -349,6 +401,11 @@ public class CajeroView extends JFrame {
         resumen.append("Número: ").append(venta.getId()).append("\n");
         resumen.append("Fecha: ").append(venta.getFecha()).append("\n");
         resumen.append("Cajero: ").append(venta.getUsuario()).append("\n");
+        
+        if (venta.getCedulaCliente() != null && !venta.getCedulaCliente().isEmpty()) {
+            resumen.append("C.I. Cliente: ").append(venta.getCedulaCliente()).append("\n");
+        }
+        
         resumen.append("═══════════════════════════════════\n");
         
         for (Producto producto : venta.getProductos()) {
@@ -368,10 +425,82 @@ public class CajeroView extends JFrame {
         JTextArea textArea = new JTextArea(resumen.toString());
         textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         textArea.setEditable(false);
+        textArea.setMargin(new java.awt.Insets(5, 5, 5, 5));
         
         JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new Dimension(400, 300));
+        scrollPane.setPreferredSize(new Dimension(500, 350));
         
-        JOptionPane.showMessageDialog(this, scrollPane, "Venta Realizada", JOptionPane.INFORMATION_MESSAGE);
+        // Panel principal con comprobante y botones
+        JPanel panelPrincipal = new JPanel(new BorderLayout(10, 10));
+        panelPrincipal.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panelPrincipal.add(scrollPane, BorderLayout.CENTER);
+        
+        // Panel de botones - HU-22: Guardar e Imprimir
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        
+        JButton btnGuardarFactura = new JButton("💾 Guardar Factura");
+        btnGuardarFactura.setBackground(new Color(40, 167, 69));
+        btnGuardarFactura.setForeground(Color.WHITE);
+        btnGuardarFactura.setFont(new Font("Arial", Font.BOLD, 12));
+        btnGuardarFactura.setPreferredSize(new Dimension(160, 40));
+        btnGuardarFactura.addActionListener(e -> guardarFactura(venta));
+        
+        JButton btnImprimirFactura = new JButton("🖨️ Imprimir Factura");
+        btnImprimirFactura.setBackground(new Color(0, 102, 204));
+        btnImprimirFactura.setForeground(Color.WHITE);
+        btnImprimirFactura.setFont(new Font("Arial", Font.BOLD, 12));
+        btnImprimirFactura.setPreferredSize(new Dimension(160, 40));
+        btnImprimirFactura.addActionListener(e -> imprimirFactura(textArea));
+        
+        JButton btnCerrar = new JButton("Cerrar");
+        btnCerrar.setBackground(new Color(108, 117, 125));
+        btnCerrar.setForeground(Color.WHITE);
+        btnCerrar.setFont(new Font("Arial", Font.PLAIN, 11));
+        btnCerrar.setPreferredSize(new Dimension(100, 40));
+        
+        panelBotones.add(btnGuardarFactura);
+        panelBotones.add(btnImprimirFactura);
+        panelBotones.add(btnCerrar);
+        
+        panelPrincipal.add(panelBotones, BorderLayout.SOUTH);
+        
+        // Crear diálogo
+        JDialog dialog = new JDialog(this, "✅ Venta Realizada - Comprobante", true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setSize(600, 500);
+        dialog.setLocationRelativeTo(this);
+        dialog.add(panelPrincipal);
+        
+        btnCerrar.addActionListener(e -> dialog.dispose());
+        
+        dialog.setVisible(true);
+    }
+    
+    /**
+     * HU-22: Guarda la factura en archivo
+     */
+    public void guardarFactura(Venta venta) {
+        try {
+            String rutaArchivo = config.GeneradorFactura.guardarFacturaEnPorDefecto(venta);
+            mostrarExito("✅ Factura guardada exitosamente en:\n" + rutaArchivo);
+        } catch (IOException ex) {
+            mostrarError("❌ Error al guardar la factura:\n" + ex.getMessage());
+        }
+    }
+    
+    /**
+     * HU-22: Imprime la factura
+     */
+    public void imprimirFactura(JTextArea textArea) {
+        try {
+            boolean exito = textArea.print();
+            if (exito) {
+                mostrarExito("✅ Factura enviada a imprimir");
+            } else {
+                mostrarError("Impresión cancelada por el usuario");
+            }
+        } catch (Exception ex) {
+            mostrarError("❌ Error al imprimir:\n" + ex.getMessage());
+        }
     }
 }

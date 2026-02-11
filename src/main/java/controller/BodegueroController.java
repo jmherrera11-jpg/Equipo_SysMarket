@@ -1,5 +1,6 @@
 package controller;
 
+
 import model.Producto;
 import model.Usuario;
 import view.BodegueroView;
@@ -127,10 +128,71 @@ public class BodegueroController {
             }
         });
         
-        // Listener para actualizar lista
+        // Listener para actualizar/guardar cambios del producto
         view.addActualizarListener(e -> {
-            cargarDatosIniciales();
-            view.mostrarExito("Lista actualizada");
+            try {
+                String codigo = view.getCodigo().trim();
+                if (codigo.isEmpty()) {
+                    view.mostrarError("Por favor seleccione un producto para editar o ingrese su código");
+                    return;
+                }
+                
+                // Verificar que el producto existe
+                if (!productoController.existeProducto(codigo)) {
+                    view.mostrarError("El producto con código: " + codigo + " no existe");
+                    return;
+                }
+                
+                // Verificar permisos según los campos modificados
+                double precioCompra = view.getPrecioCompra();
+                double precioVenta = view.getPrecioVenta();
+                int stock = view.getStock();
+                
+                Producto productoActual = productoController.buscarProductoPorCodigo(codigo);
+                
+                // Si se modifican precios, verificar permiso
+                if ((precioCompra != productoActual.getPrecioCompra() || 
+                     precioVenta != productoActual.getPrecioVenta()) &&
+                    !usuarioActual.puedeModificarPrecios()) {
+                    view.mostrarError("No tiene permiso para modificar precios de productos");
+                    return;
+                }
+                
+                // Si se modifica stock, verificar permiso
+                if (stock != productoActual.getStock() &&
+                    !usuarioActual.puedeAjustarStock()) {
+                    view.mostrarError("No tiene permiso para ajustar el stock de productos");
+                    return;
+                }
+                
+                // Crear producto con los nuevos datos
+                var productoBuscado = productoController.buscarProductoPorCodigo(codigo);
+                var productoActualizado = new Producto(
+                    codigo,
+                    view.getNombre(),
+                    view.getCategoria(),
+                    view.getPrecioCompra(),
+                    view.getPrecioVenta(),
+                    view.getStock(),
+                    view.getStockMinimo()
+                );
+                
+                // Copiar la fecha de creación original
+                productoActualizado.setFechaCreacion(productoBuscado.getFechaCreacion());
+                
+                // Actualizar producto en MongoDB
+                productoController.actualizarProducto(codigo, productoActualizado);
+                view.mostrarExito("Producto actualizado exitosamente en MongoDB");
+                view.limpiarFormulario();
+                cargarDatosIniciales();
+                
+            } catch (NumberFormatException ex) {
+                view.mostrarError("Por favor ingrese valores numéricos válidos\n" +
+                                "Precio: Decimal (ej: 10.50)\n" +
+                                "Stock: Número entero (ej: 100)");
+            } catch (Exception ex) {
+                view.mostrarError("Error al actualizar producto: " + ex.getMessage());
+            }
         });
         
         // Listener para buscar por categoría
